@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  php:
+    restart: always
+    container_name: app-php
+    build:
+      context: ./docker/images/php
+      dockerfile: Dockerfile
+    working_dir: /var/www/html
+    expose:
+      - ${PHP_INTERNAL_PORT:-9000}
+    volumes:
+      - ./:/var/www/html
+    networks:
+      default:
+        ipv4_address: 172.20.0.10
+
+  web:
+    restart: always
+    container_name: app-nginx
+    build:
+      context: ./docker/images/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    networks:
+      default:
+        ipv4_address: 172.20.0.20
+
+  postgresql:
+    restart: always
+    container_name: app-postgresql
+    build:
+      context: ./docker/images/postgresql
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-ecommerce}
+      POSTGRES_USER: ${DB_USERNAME:-root}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      default:
+        ipv4_address: 172.20.0.30
+
+  redis:
+    restart: always
+    container_name: app-redis
+    build:
+      context: ./docker/images/redis
+      dockerfile: Dockerfile
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/images/redis/data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD:-123456}
+    networks:
+      default:
+        ipv4_address: 172.20.0.40
+
+  rabbitmq:
+    restart: always
+    container_name: app-rabbitmq
+    build:
+      context: ./docker/images/rabbitmq
+      dockerfile: Dockerfile
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./docker/images/rabbitmq/data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+    networks:
+      default:
+        ipv4_address: 172.20.0.50
+
+networks:
+  default:
+    driver: bridge
+    name: default_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  pgdata:
+    driver: local
